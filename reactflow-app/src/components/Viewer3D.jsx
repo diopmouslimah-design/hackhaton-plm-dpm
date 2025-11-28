@@ -635,6 +635,7 @@ export default function Viewer3D({ modelFile, graphData }) {
                     position: 'absolute',
                     top: '20px',
                     right: '20px',
+                    bottom: '0px',
                     background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.98) 0%, rgba(30, 41, 59, 0.98) 100%)',
                     border: '1px solid rgba(74, 158, 255, 0.3)',
                     borderRadius: '16px',
@@ -644,7 +645,9 @@ export default function Viewer3D({ modelFile, graphData }) {
                     color: '#fff',
                     boxShadow: '0 20px 60px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.05)',
                     backdropFilter: 'blur(20px)',
-                    overflow: 'hidden'
+                    overflow: 'hidden',
+                    display: 'flex',
+                    flexDirection: 'column'
                   }}>
                     {/* Header */}
                     <div style={{ 
@@ -701,7 +704,17 @@ export default function Viewer3D({ modelFile, graphData }) {
                     </div>
 
                     {/* Content */}
-                    <div style={{ padding: '20px 24px', maxHeight: '70vh', overflowY: 'auto' }}>
+                    <div 
+                      className="popup-scroll-content"
+                      style={{ 
+                        padding: '20px 24px 24px 24px', 
+                        flex: 1,
+                        overflowY: 'scroll',
+                        overflowX: 'hidden',
+                        minHeight: 0,
+                        paddingBottom: '30px'
+                      }}
+                    >
                       {selectedMesh.matchedNodes && selectedMesh.matchedNodes.length > 0 ? (
                         <>
                           {/* Summary Stats */}

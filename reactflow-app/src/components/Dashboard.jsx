@@ -197,6 +197,7 @@ function Dashboard({ graphData, kpis, issues, onUploadClick }) {
           padding: "20px",
           boxShadow: "2px 0 10px rgba(0,0,0,0.1)",
           overflowY: "auto",
+          boxSizing: "border-box",
         }}
       >
         <div style={{ marginBottom: "30px" }}>
@@ -529,7 +530,7 @@ function Dashboard({ graphData, kpis, issues, onUploadClick }) {
           )}
 
           {view === "kpis" && (
-            <div style={{ padding: "30px", overflowY: "auto", height: "100%" }}>
+            <div style={{ padding: "30px", overflowY: "auto", height: "100%", boxSizing: "border-box" }}>
               <h2 style={{ marginTop: 0, color: "#333" }}>📊 Indicateurs Clés de Performance</h2>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "20px" }}>
                 <div style={{ background: "#f5f5f5", padding: "20px", borderRadius: "8px" }}>
@@ -572,7 +573,7 @@ function Dashboard({ graphData, kpis, issues, onUploadClick }) {
           )}
 
           {view === "issues" && (
-            <div style={{ padding: "30px", overflowY: "auto", height: "100%" }}>
+            <div style={{ padding: "30px", overflowY: "auto", height: "100%", boxSizing: "border-box" }}>
               <h2 style={{ marginTop: 0, color: "#333" }}>⚠️ Issues et Alertes</h2>
               <div style={{ display: "grid", gap: "15px" }}>
                 {issues?.map((issue) => (

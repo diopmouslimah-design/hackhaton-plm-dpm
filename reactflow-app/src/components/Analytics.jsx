@@ -103,7 +103,7 @@ function Analytics({ graphData, kpis }) {
 
 
   return (
-    <div style={{ padding: "30px", overflowY: "auto", height: "100%" }}>
+    <div style={{ padding: "30px", overflowY: "auto", height: "100%", boxSizing: "border-box" }}>
       <h1 style={{ color: "#333", marginTop: 0 }}>📈 Analyse Détaillée</h1>
 
       {/* Budget Summary */}
