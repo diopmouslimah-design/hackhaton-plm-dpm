@@ -11,6 +11,7 @@ import "reactflow/dist/style.css";
 import { getDeltaColor, getMacroNodeColor, getCriticityColor } from "../api/styleUtils";
 import Analytics from "./Analytics";
 import Viewer3D from "./Viewer3D";
+import Chatbot from "./Chatbot";
 import { useEffect } from "react";
 
 // Add animation styles
@@ -357,6 +358,30 @@ function Dashboard({ graphData, kpis, issues, onUploadClick }) {
           >
             🚁 Modèle 3D
           </button>
+          <button
+            onClick={() => handleViewChange("chatbot")}
+            style={{
+              width: "100%",
+              padding: "12px 16px",
+              background: view === "chatbot" ? "rgba(255,255,255,0.3)" : "rgba(255,255,255,0.1)",
+              color: "#fff",
+              border: "1px solid rgba(255,255,255,0.3)",
+              borderRadius: "6px",
+              cursor: "pointer",
+              fontWeight: "bold",
+              marginTop: "10px",
+              transition: "all 0.3s",
+              fontSize: "14px",
+            }}
+            onMouseOver={(e) => {
+              if (view !== "chatbot") e.target.style.background = "rgba(255,255,255,0.15)";
+            }}
+            onMouseOut={(e) => {
+              if (view !== "chatbot") e.target.style.background = "rgba(255,255,255,0.1)";
+            }}
+          >
+            🤖 Assistant IA
+          </button>
         </div>
 
         {/* Upload Button */}
@@ -653,6 +678,10 @@ function Dashboard({ graphData, kpis, issues, onUploadClick }) {
                 )}
               </div>
             </div>
+          )}
+
+          {view === "chatbot" && (
+            <Chatbot graphData={graphData} kpis={kpis} issues={issues} />
           )}
         </div>
       </div>
