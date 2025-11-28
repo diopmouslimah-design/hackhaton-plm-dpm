@@ -70,7 +70,9 @@ function Model({ meshes, onMeshClick }) {
   // Set initial rotation offset
   useEffect(() => {
     if (groupRef.current) {
-      groupRef.current.rotation.x = -Math.PI/2; 
+      // Rotate 90 degrees around X-axis to lay plane flat, then 90 degrees around Z to orient correctly
+      groupRef.current.rotation.x = Math.PI/2; 
+      groupRef.current.rotation.y = - 1/3 * 7/4 * Math.PI;
     }
   }, [meshes]);
 
@@ -117,7 +119,6 @@ function Scene({ modelData, onMeshClick }) {
       
       <Model meshes={modelData?.meshes} onMeshClick={onMeshClick} />
       
-      <Grid infiniteGrid cellSize={2} cellThickness={0.8} sectionSize={10} fadeDistance={60} />
       <OrbitControls makeDefault enableDamping dampingFactor={0.05} />
       <Environment preset="studio" />
     </>
@@ -395,14 +396,59 @@ function getRandomColor() {
   return colors[Math.floor(Math.random() * colors.length)];
 }
 
+// Assign colors to meshes based on graphData delays
+function assignDelayColors(meshes, graphData) {
+  if (!graphData || !graphData.detail || !Array.isArray(graphData.detail.nodes)) {
+    return meshes;
+  }
+  
+  const nodes = graphData.detail.nodes;
+  
+  // Assign each mesh a random node and color it by that node's delta
+  return meshes.map((mesh, index) => {
+    // Use modulo to cycle through nodes if more meshes than nodes
+    const node = nodes[index % nodes.length];
+    let delta = node?.kpi?.delta_cycle || 0;
+    
+    // Ensure no piece has negative delay - clamp to minimum of 0
+    delta = Math.max(0, delta);
+    
+    // Add random positive delay with wider range (between 10 and 120 minutes) for better color variation
+    delta = delta + Math.random() * 110 + 10;
+    
+    const color = getDeltaColor(delta);
+    
+    return {
+      ...mesh,
+      color: color,
+      delta: delta,
+      nodeName: node?.label || node?.id
+    };
+  });
+}
+
 // Main Viewer Component
-export default function Viewer3D({ modelUrl, graphData }) {
-  const [file, setFile] = useState(null);
+export default function Viewer3D({ modelFile, graphData }) {
   const [modelData, setModelData] = useState(null);
-  const [isDragging, setIsDragging] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedMesh, setSelectedMesh] = useState(null);
-  const fileInputRef = useRef(null);
+
+  // Load model when modelFile prop changes
+  useEffect(() => {
+    if (modelFile) {
+      handleFile(modelFile);
+    }
+  }, [modelFile]);
+  
+  // Reapply colors when graphData changes
+  useEffect(() => {
+    if (modelData && modelData.meshes && graphData) {
+      setModelData(prevData => ({
+        ...prevData,
+        meshes: assignDelayColors(prevData.meshes, graphData)
+      }));
+    }
+  }, [graphData]);
 
   const handleMeshClick = (index, geometry, color, name) => {
     const vertexCount = geometry.attributes.position.count;
@@ -461,38 +507,10 @@ export default function Viewer3D({ modelUrl, graphData }) {
     setSelectedMesh(null);
   };
 
-  const handleDragOver = (e) => {
-    e.preventDefault();
-    setIsDragging(true);
-  };
-
-  const handleDragLeave = (e) => {
-    e.preventDefault();
-    setIsDragging(false);
-  };
-
-  const handleDrop = (e) => {
-    e.preventDefault();
-    setIsDragging(false);
-    
-    const droppedFile = e.dataTransfer.files[0];
-    if (droppedFile) {
-      handleFile(droppedFile);
-    }
-  };
-
-  const handleFileInput = (e) => {
-    const selectedFile = e.target.files[0];
-    if (selectedFile) {
-      handleFile(selectedFile);
-    }
-  };
-
   const handleFile = async (selectedFile) => {
     console.clear();
     console.log('🚀 Loading file:', selectedFile.name);
     
-    setFile(selectedFile);
     setIsLoading(true);
     setModelData(null);
     
@@ -515,6 +533,11 @@ export default function Viewer3D({ modelUrl, graphData }) {
         throw new Error('Unsupported file format. Please use .stl, .glb, .gltf, or .3dxml');
       }
       
+      // Apply delay-based colors to meshes if graphData is available
+      if (data && data.meshes) {
+        data.meshes = assignDelayColors(data.meshes, graphData);
+      }
+      
       setModelData(data);
     } catch (error) {
       console.error('Error:', error);
@@ -527,11 +550,29 @@ export default function Viewer3D({ modelUrl, graphData }) {
     }
   };
 
-  const clearFile = () => {
-    setFile(null);
-    setModelData(null);
-    setIsLoading(false);
-  };
+  if (!modelFile) {
+    return (
+      <div style={{ 
+        minHeight: '100vh',
+        width: '100%',
+        display: 'flex', 
+        flexDirection: 'column',
+        justifyContent: 'center',
+        alignItems: 'center',
+        background: '#0a0a0a'
+      }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: '64px', marginBottom: '16px' }}>📦</div>
+          <h2 style={{ margin: '0 0 8px 0', color: '#fff' }}>
+            No 3D Model Loaded
+          </h2>
+          <p style={{ margin: '0 0 4px 0', color: '#888', fontSize: '14px' }}>
+            Use the "Importer 3D" button to load a model
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ 
@@ -541,99 +582,43 @@ export default function Viewer3D({ modelUrl, graphData }) {
       flexDirection: 'column',
       background: '#0a0a0a'
     }}>
-      {!file ? (
-        <div
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-          onDrop={handleDrop}
-          onClick={() => fileInputRef.current?.click()}
-          style={{
-            flex: 1,
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'center',
-            alignItems: 'center',
-            border: isDragging ? '3px dashed #4a9eff' : '3px dashed #333',
-            borderRadius: '12px',
-            margin: '24px',
-            background: isDragging ? 'rgba(74, 158, 255, 0.1)' : 'rgba(255, 255, 255, 0.02)',
-            transition: 'all 0.3s ease',
-            cursor: 'pointer'
-          }}
-        >
-          <div style={{ textAlign: 'center', pointerEvents: 'none' }}>
-            <div style={{ fontSize: '64px', marginBottom: '16px' }}>📦</div>
-            <h2 style={{ margin: '0 0 8px 0', color: '#fff' }}>
-              {isDragging ? 'Drop your 3D file here' : 'Drop 3D File'}
-            </h2>
-            <p style={{ margin: '0 0 4px 0', color: '#888', fontSize: '14px' }}>
-              Supports STL, GLB, GLTF, and 3DXML
-            </p>
-            <p style={{ margin: 0, color: '#666', fontSize: '12px' }}>
-              or click to browse
-            </p>
+      <div style={{ 
+        padding: '8px 24px', 
+        background: '#151515', 
+        display: 'flex', 
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        borderBottom: '1px solid #333',
+        minHeight: '50px'
+      }}>
+        <div style={{ flex: 1 }}>
+          <div>
+            <strong style={{ color: '#4a9eff' }}>File:</strong>{' '}
+            <span style={{ color: '#fff' }}>{modelFile.name}</span>
+            <span style={{ color: '#888', marginLeft: '12px' }}>
+              ({(modelFile.size / 1024).toFixed(1)} KB)
+            </span>
           </div>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".stl,.glb,.gltf,.3dxml"
-            onChange={handleFileInput}
-            style={{ display: 'none' }}
-          />
-        </div>
-      ) : (
-        <>
-          <div style={{ 
-            padding: '8px 24px', 
-            background: '#151515', 
-            display: 'flex', 
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            borderBottom: '1px solid #333',
-            minHeight: '50px'
-          }}>
-            <div style={{ flex: 1 }}>
-              <div>
-                <strong style={{ color: '#4a9eff' }}>File:</strong>{' '}
-                <span style={{ color: '#fff' }}>{file.name}</span>
-                <span style={{ color: '#888', marginLeft: '12px' }}>
-                  ({(file.size / 1024).toFixed(1)} KB)
-                </span>
-              </div>
-              {isLoading && (
-                <div style={{ color: '#ffa500', marginTop: '4px', fontSize: '14px' }}>
-                  ⏳ Parsing 3DXML file...
-                </div>
-              )}
-              {modelData?.error && (
-                <div style={{ color: '#ff4444', marginTop: '4px', fontSize: '13px', maxWidth: '600px' }}>
-                  ⚠️ {modelData.error}
-                </div>
-              )}
-              {modelData?.meshes && modelData.meshes.length > 0 && (
-                <div style={{ color: '#4ade80', marginTop: '4px', fontSize: '14px' }}>
-                  ✓ Loaded {modelData.meshes.length} mesh{modelData.meshes.length !== 1 ? 'es' : ''}
-                  {modelData.fileCount && ` from ${modelData.fileCount} files`}
-                </div>
-              )}
+          {isLoading && (
+            <div style={{ color: '#ffa500', marginTop: '4px', fontSize: '14px' }}>
+              ⏳ Parsing 3D file...
             </div>
-            <button 
-              onClick={clearFile}
-              style={{ 
-                background: '#d32f2f', 
-                padding: '8px 20px',
-                cursor: 'pointer',
-                border: 'none',
-                borderRadius: '4px',
-                color: 'white',
-                fontWeight: '500'
-              }}
-            >
-              Clear
-            </button>
-          </div>
-          <div style={{ flex: 1, position: 'relative', background: '#0a0a0a'}}>
-            {modelData?.meshes && modelData.meshes.length > 0 ? (
+          )}
+          {modelData?.error && (
+            <div style={{ color: '#ff4444', marginTop: '4px', fontSize: '13px', maxWidth: '600px' }}>
+              ⚠️ {modelData.error}
+            </div>
+          )}
+          {modelData?.meshes && modelData.meshes.length > 0 && (
+            <div style={{ color: '#4ade80', marginTop: '4px', fontSize: '14px' }}>
+              ✓ Loaded {modelData.meshes.length} mesh{modelData.meshes.length !== 1 ? 'es' : ''}
+              {modelData.fileCount && ` from ${modelData.fileCount} files`}
+            </div>
+          )}
+        </div>
+      </div>
+      <div style={{ flex: 1, position: 'relative', background: '#0a0a0a'}}>
+        {modelData?.meshes && modelData.meshes.length > 0 ? (
                 <>
                 <div style={{ flex: 1, minHeight: 0, height: '500px' }}>
                   <Canvas
@@ -650,101 +635,368 @@ export default function Viewer3D({ modelUrl, graphData }) {
                     position: 'absolute',
                     top: '20px',
                     right: '20px',
-                    background: 'rgba(20, 20, 20, 0.95)',
-                    border: '1px solid #4a9eff',
-                    borderRadius: '8px',
-                    padding: '14px',
-                    minWidth: '320px',
+                    background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.98) 0%, rgba(30, 41, 59, 0.98) 100%)',
+                    border: '1px solid rgba(74, 158, 255, 0.3)',
+                    borderRadius: '16px',
+                    padding: '0',
+                    minWidth: '420px',
+                    maxWidth: '520px',
                     color: '#fff',
-                    boxShadow: '0 4px 20px rgba(0,0,0,0.5)'
+                    boxShadow: '0 20px 60px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.05)',
+                    backdropFilter: 'blur(20px)',
+                    overflow: 'hidden'
                   }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                      <div>
-                        <h3 style={{ margin: 0, color: '#4a9eff' }}>{selectedMesh.name || `Part #${selectedMesh.index + 1}`}</h3>
-                        <div style={{ fontSize: '12px', color: '#bbb' }}>{selectedMesh.macro || ''}</div>
+                    {/* Header */}
+                    <div style={{ 
+                      background: 'linear-gradient(135deg, rgba(74, 158, 255, 0.15) 0%, rgba(99, 102, 241, 0.15) 100%)',
+                      borderBottom: '1px solid rgba(74, 158, 255, 0.2)',
+                      padding: '20px 24px',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center'
+                    }}>
+                      <div style={{ flex: 1 }}>
+                        <h3 style={{ 
+                          margin: '0 0 4px 0', 
+                          color: '#fff',
+                          fontSize: '18px',
+                          fontWeight: '600',
+                          letterSpacing: '-0.01em'
+                        }}>
+                          {selectedMesh.name || `Pièce #${selectedMesh.index + 1}`}
+                        </h3>
+                        <div style={{ 
+                          fontSize: '13px', 
+                          color: 'rgba(148, 163, 184, 0.9)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px'
+                        }}>
+                          <span>📦</span>
+                          <span>{selectedMesh.macro || 'Composant 3D'}</span>
+                        </div>
                       </div>
                       <button 
                         onClick={closeMeshMenu}
                         style={{
-                          background: 'transparent',
-                          border: 'none',
+                          background: 'rgba(255, 255, 255, 0.05)',
+                          border: '1px solid rgba(255, 255, 255, 0.1)',
                           color: '#fff',
-                          fontSize: '20px',
+                          fontSize: '18px',
                           cursor: 'pointer',
-                          padding: '0 4px'
+                          padding: '6px 12px',
+                          borderRadius: '8px',
+                          transition: 'all 0.2s',
+                          fontWeight: '300'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.target.style.background = 'rgba(255, 255, 255, 0.1)';
+                          e.target.style.borderColor = 'rgba(255, 255, 255, 0.2)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.target.style.background = 'rgba(255, 255, 255, 0.05)';
+                          e.target.style.borderColor = 'rgba(255, 255, 255, 0.1)';
                         }}
                       >×</button>
                     </div>
 
-                    {/* If we matched postes, show a list */}
-                    {selectedMesh.matchedNodes && selectedMesh.matchedNodes.length > 0 ? (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                        {(() => {
-                          const nodes = selectedMesh.matchedNodes;
-                          const maxTime = Math.max(...nodes.map(n => Math.max(n.kpi?.cycle_prev || 0, n.kpi?.cycle_real || 0)), 1);
-                          return nodes.map((n, idx) => {
-                            const prev = n.kpi?.cycle_prev || 0;
-                            const real = n.kpi?.cycle_real || 0;
-                            const delta = n.kpi?.delta_cycle || (real - prev) || 0;
-                            const barPrev = Math.round((prev / maxTime) * 100);
-                            const barReal = Math.round((real / maxTime) * 100);
-                            const discreteColor = getMacroNodeColor(delta);
-                            // stronger, semi-opaque background derived from discrete hex color
-                            const bgColor = hexToRgba(discreteColor, 0.25);
+                    {/* Content */}
+                    <div style={{ padding: '20px 24px', maxHeight: '70vh', overflowY: 'auto' }}>
+                      {selectedMesh.matchedNodes && selectedMesh.matchedNodes.length > 0 ? (
+                        <>
+                          {/* Summary Stats */}
+                          <div style={{ 
+                            display: 'grid', 
+                            gridTemplateColumns: 'repeat(3, 1fr)', 
+                            gap: '12px',
+                            marginBottom: '24px'
+                          }}>
+                            {(() => {
+                              const nodes = selectedMesh.matchedNodes;
+                              const totalPrev = nodes.reduce((sum, n) => sum + (n.kpi?.cycle_prev || 0), 0);
+                              const totalReal = nodes.reduce((sum, n) => sum + (n.kpi?.cycle_real || 0), 0);
+                              const totalDelta = totalReal - totalPrev;
+                              
+                              return (
+                                <>
+                                  <div style={{
+                                    background: 'rgba(59, 130, 246, 0.1)',
+                                    border: '1px solid rgba(59, 130, 246, 0.2)',
+                                    borderRadius: '12px',
+                                    padding: '12px',
+                                    textAlign: 'center'
+                                  }}>
+                                    <div style={{ fontSize: '11px', color: 'rgba(148, 163, 184, 0.9)', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Postes</div>
+                                    <div style={{ fontSize: '24px', fontWeight: '700', color: '#3b82f6' }}>{nodes.length}</div>
+                                  </div>
+                                  <div style={{
+                                    background: 'rgba(34, 197, 94, 0.1)',
+                                    border: '1px solid rgba(34, 197, 94, 0.2)',
+                                    borderRadius: '12px',
+                                    padding: '12px',
+                                    textAlign: 'center'
+                                  }}>
+                                    <div style={{ fontSize: '11px', color: 'rgba(148, 163, 184, 0.9)', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Prévu</div>
+                                    <div style={{ fontSize: '24px', fontWeight: '700', color: '#22c55e' }}>{totalPrev.toFixed(0)}<span style={{ fontSize: '14px', fontWeight: '400', marginLeft: '2px' }}>m</span></div>
+                                  </div>
+                                  <div style={{
+                                    background: totalDelta > 10 ? 'rgba(239, 68, 68, 0.1)' : 'rgba(251, 146, 60, 0.1)',
+                                    border: totalDelta > 10 ? '1px solid rgba(239, 68, 68, 0.2)' : '1px solid rgba(251, 146, 60, 0.2)',
+                                    borderRadius: '12px',
+                                    padding: '12px',
+                                    textAlign: 'center'
+                                  }}>
+                                    <div style={{ fontSize: '11px', color: 'rgba(148, 163, 184, 0.9)', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Retard</div>
+                                    <div style={{ fontSize: '24px', fontWeight: '700', color: totalDelta > 10 ? '#ef4444' : '#fb923c' }}>+{totalDelta.toFixed(0)}<span style={{ fontSize: '14px', fontWeight: '400', marginLeft: '2px' }}>m</span></div>
+                                  </div>
+                                </>
+                              );
+                            })()}
+                          </div>
 
-                            return (
-                              <div key={n.id || idx} style={{ display: 'flex', flexDirection: 'column', padding: '8px', borderRadius: '6px', background: bgColor, borderLeft: `6px solid ${discreteColor}` }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                  <div style={{ fontSize: '13px', color: '#fff', fontWeight: '600' }}>{n.label || n.id}</div>
-                                  <div style={{ fontSize: '12px', color: '#ccc' }}>Δ: {delta.toFixed(2)} min</div>
-                                </div>
-                                <div style={{ display: 'flex', gap: '8px', marginTop: '6px', alignItems: 'center' }}>
-                                  <div style={{ width: '60%', height: '10px', background: '#222', borderRadius: '4px', overflow: 'hidden', position: 'relative' }}>
-                                    <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${barPrev}%`, background: '#4caf50' }} title={`Prévu: ${prev} min`} />
-                                    <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${barReal}%`, background: '#ff9800', opacity: 0.9 }} title={`Réel: ${real} min`} />
+                          {/* Timeline Title */}
+                          <div style={{ 
+                            fontSize: '14px', 
+                            fontWeight: '600', 
+                            color: 'rgba(148, 163, 184, 0.9)',
+                            marginBottom: '16px',
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.5px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px'
+                          }}>
+                            <div style={{ width: '3px', height: '14px', background: '#4a9eff', borderRadius: '2px' }}></div>
+                            Analyse par Poste
+                          </div>
+
+                          {/* Postes List with Enhanced Graph */}
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                            {(() => {
+                              const nodes = selectedMesh.matchedNodes;
+                              const maxTime = Math.max(...nodes.map(n => Math.max(n.kpi?.cycle_prev || 0, n.kpi?.cycle_real || 0)), 1);
+                              
+                              return nodes.map((n, idx) => {
+                                const prev = n.kpi?.cycle_prev || 0;
+                                const real = n.kpi?.cycle_real || 0;
+                                const delta = n.kpi?.delta_cycle || (real - prev) || 0;
+                                const nbPieces = n.kpi?.nb_pieces || 0;
+                                const criticite = n.kpi?.criticite || 'Normal';
+                                const discreteColor = getMacroNodeColor(delta);
+                                const bgColor = hexToRgba(discreteColor, 0.08);
+
+                                return (
+                                  <div key={n.id || idx} style={{ 
+                                    display: 'flex', 
+                                    flexDirection: 'column', 
+                                    padding: '16px', 
+                                    borderRadius: '12px', 
+                                    background: bgColor,
+                                    border: `1px solid ${hexToRgba(discreteColor, 0.2)}`,
+                                    transition: 'all 0.2s'
+                                  }}>
+                                    {/* Poste Header */}
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+                                      <div style={{ flex: 1 }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                                          <div style={{ 
+                                            fontSize: '14px', 
+                                            color: '#fff', 
+                                            fontWeight: '600',
+                                            letterSpacing: '-0.01em'
+                                          }}>{n.label || n.id}</div>
+                                          <div style={{
+                                            fontSize: '10px',
+                                            padding: '3px 8px',
+                                            borderRadius: '6px',
+                                            background: hexToRgba(discreteColor, 0.2),
+                                            color: discreteColor,
+                                            fontWeight: '600',
+                                            textTransform: 'uppercase',
+                                            letterSpacing: '0.3px'
+                                          }}>{criticite}</div>
+                                        </div>
+                                        <div style={{ fontSize: '12px', color: 'rgba(148, 163, 184, 0.8)' }}>
+                                          {n.macro || 'N/A'} • {nbPieces} pièce{nbPieces !== 1 ? 's' : ''}
+                                        </div>
+                                      </div>
+                                      <div style={{ 
+                                        textAlign: 'right',
+                                        background: hexToRgba(discreteColor, 0.15),
+                                        padding: '8px 12px',
+                                        borderRadius: '8px',
+                                        border: `1px solid ${hexToRgba(discreteColor, 0.3)}`
+                                      }}>
+                                        <div style={{ fontSize: '10px', color: 'rgba(148, 163, 184, 0.9)', marginBottom: '2px' }}>Retard</div>
+                                        <div style={{ fontSize: '18px', fontWeight: '700', color: discreteColor }}>
+                                          +{delta.toFixed(1)}<span style={{ fontSize: '11px', fontWeight: '400', marginLeft: '1px' }}>min</span>
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                    {/* Enhanced Bar Chart */}
+                                    <div style={{ marginBottom: '12px' }}>
+                                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'rgba(148, 163, 184, 0.8)', marginBottom: '6px' }}>
+                                        <span>Temps de cycle</span>
+                                        <span>{real.toFixed(1)} / {prev.toFixed(1)} min</span>
+                                      </div>
+                                      <div style={{ 
+                                        height: '40px', 
+                                        background: 'rgba(15, 23, 42, 0.5)', 
+                                        borderRadius: '8px', 
+                                        overflow: 'hidden',
+                                        position: 'relative',
+                                        border: '1px solid rgba(255, 255, 255, 0.05)'
+                                      }}>
+                                        {/* Prévu bar */}
+                                        <div style={{ 
+                                          position: 'absolute', 
+                                          left: 0, 
+                                          top: 0, 
+                                          bottom: '50%',
+                                          width: `${(prev / maxTime) * 100}%`, 
+                                          background: 'linear-gradient(90deg, rgba(34, 197, 94, 0.6) 0%, rgba(34, 197, 94, 0.8) 100%)',
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          paddingLeft: '8px',
+                                          fontSize: '11px',
+                                          fontWeight: '600',
+                                          color: '#fff',
+                                          borderRadius: '4px 0 0 0'
+                                        }}>
+                                          {prev > maxTime * 0.15 && `${prev.toFixed(1)}m`}
+                                        </div>
+                                        {/* Réel bar */}
+                                        <div style={{ 
+                                          position: 'absolute', 
+                                          left: 0, 
+                                          top: '50%', 
+                                          bottom: 0,
+                                          width: `${(real / maxTime) * 100}%`, 
+                                          background: `linear-gradient(90deg, ${hexToRgba(discreteColor, 0.7)} 0%, ${hexToRgba(discreteColor, 0.9)} 100%)`,
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          paddingLeft: '8px',
+                                          fontSize: '11px',
+                                          fontWeight: '600',
+                                          color: '#fff',
+                                          borderRadius: '0 0 0 4px'
+                                        }}>
+                                          {real > maxTime * 0.15 && `${real.toFixed(1)}m`}
+                                        </div>
+                                        {/* Labels on right side */}
+                                        <div style={{ position: 'absolute', right: '8px', top: '3px', fontSize: '10px', color: 'rgba(34, 197, 94, 0.9)', fontWeight: '600' }}>
+                                          PRÉVU
+                                        </div>
+                                        <div style={{ position: 'absolute', right: '8px', bottom: '3px', fontSize: '10px', color: discreteColor, fontWeight: '600' }}>
+                                          RÉEL
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                    {/* Performance Indicator */}
+                                    <div style={{ 
+                                      display: 'flex', 
+                                      gap: '8px',
+                                      fontSize: '12px',
+                                      color: 'rgba(148, 163, 184, 0.9)'
+                                    }}>
+                                      <div style={{ 
+                                        flex: 1,
+                                        padding: '8px 10px',
+                                        background: 'rgba(15, 23, 42, 0.4)',
+                                        borderRadius: '6px',
+                                        display: 'flex',
+                                        justifyContent: 'space-between',
+                                        alignItems: 'center'
+                                      }}>
+                                        <span>Performance</span>
+                                        <span style={{ 
+                                          fontWeight: '600',
+                                          color: delta > 10 ? '#ef4444' : delta > 5 ? '#fb923c' : '#22c55e'
+                                        }}>
+                                          {((prev / real) * 100).toFixed(0)}%
+                                        </span>
+                                      </div>
+                                      <div style={{ 
+                                        flex: 1,
+                                        padding: '8px 10px',
+                                        background: 'rgba(15, 23, 42, 0.4)',
+                                        borderRadius: '6px',
+                                        display: 'flex',
+                                        justifyContent: 'space-between',
+                                        alignItems: 'center'
+                                      }}>
+                                        <span>Impact</span>
+                                        <span style={{ fontWeight: '600', color: '#fff' }}>
+                                          {((delta / real) * 100).toFixed(0)}%
+                                        </span>
+                                      </div>
+                                    </div>
                                   </div>
-                                  <div style={{ width: '40%', display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#ddd' }}>
-                                    <div>Prévu: <strong style={{ color: '#fff' }}>{prev.toFixed(2)}</strong></div>
-                                    <div>Réel: <strong style={{ color: '#fff' }}>{real.toFixed(2)}</strong></div>
-                                  </div>
-                                </div>
+                                );
+                              });
+                            })()}
+                          </div>
+                        </>
+                      ) : (
+                        // Fallback: show mesh basic info with improved design
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                          <div style={{
+                            background: 'rgba(15, 23, 42, 0.5)',
+                            border: '1px solid rgba(255, 255, 255, 0.05)',
+                            borderRadius: '12px',
+                            padding: '16px'
+                          }}>
+                            <div style={{ fontSize: '12px', color: 'rgba(148, 163, 184, 0.9)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Couleur</div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                              <div style={{
+                                width: '48px',
+                                height: '48px',
+                                background: selectedMesh.color,
+                                border: '2px solid rgba(255, 255, 255, 0.1)',
+                                borderRadius: '10px',
+                                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)'
+                              }}></div>
+                              <span style={{ fontSize: '14px', fontWeight: '500' }}>{selectedMesh.color}</span>
+                            </div>
+                          </div>
+
+                          <div style={{
+                            background: 'rgba(15, 23, 42, 0.5)',
+                            border: '1px solid rgba(255, 255, 255, 0.05)',
+                            borderRadius: '12px',
+                            padding: '16px'
+                          }}>
+                            <div style={{ fontSize: '12px', color: 'rgba(148, 163, 184, 0.9)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Vertices</div>
+                            <div style={{ fontSize: '24px', fontWeight: '700', color: '#4a9eff' }}>{selectedMesh.vertexCount.toLocaleString()}</div>
+                          </div>
+
+                          <div style={{
+                            background: 'rgba(15, 23, 42, 0.5)',
+                            border: '1px solid rgba(255, 255, 255, 0.05)',
+                            borderRadius: '12px',
+                            padding: '16px'
+                          }}>
+                            <div style={{ fontSize: '12px', color: 'rgba(148, 163, 184, 0.9)', marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Dimensions</div>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
+                              <div>
+                                <div style={{ fontSize: '11px', color: 'rgba(148, 163, 184, 0.7)', marginBottom: '4px' }}>X</div>
+                                <div style={{ fontSize: '16px', fontWeight: '600', color: '#ef4444' }}>{selectedMesh.size.x}</div>
                               </div>
-                            );
-                          });
-                        })()}
-                      </div>
-                    ) : (
-                      // fallback: show mesh basic info
-                      <div>
-                        <div style={{ marginBottom: '12px' }}>
-                          <strong style={{ color: '#888' }}>Color:</strong>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
-                            <div style={{
-                              width: '24px',
-                              height: '24px',
-                              background: selectedMesh.color,
-                              border: '1px solid #555',
-                              borderRadius: '4px'
-                            }}></div>
-                            <span>{selectedMesh.color}</span>
+                              <div>
+                                <div style={{ fontSize: '11px', color: 'rgba(148, 163, 184, 0.7)', marginBottom: '4px' }}>Y</div>
+                                <div style={{ fontSize: '16px', fontWeight: '600', color: '#22c55e' }}>{selectedMesh.size.y}</div>
+                              </div>
+                              <div>
+                                <div style={{ fontSize: '11px', color: 'rgba(148, 163, 184, 0.7)', marginBottom: '4px' }}>Z</div>
+                                <div style={{ fontSize: '16px', fontWeight: '600', color: '#3b82f6' }}>{selectedMesh.size.z}</div>
+                              </div>
+                            </div>
                           </div>
                         </div>
-
-                        <div style={{ marginBottom: '12px' }}>
-                          <strong style={{ color: '#888' }}>Vertices:</strong>
-                          <div style={{ marginTop: '4px' }}>{selectedMesh.vertexCount.toLocaleString()}</div>
-                        </div>
-
-                        <div>
-                          <strong style={{ color: '#888' }}>Dimensions:</strong>
-                          <div style={{ marginTop: '4px', fontSize: '14px' }}>
-                            <div>X: {selectedMesh.size.x}</div>
-                            <div>Y: {selectedMesh.size.y}</div>
-                            <div>Z: {selectedMesh.size.z}</div>
-                          </div>
-                        </div>
-                      </div>
-                    )}
+                      )}
+                    </div>
                   </div>
                 )}
               </>
@@ -789,8 +1041,6 @@ export default function Viewer3D({ modelUrl, graphData }) {
               </div>
             )}
           </div>
-        </>
-      )}
     </div>
   );
 }

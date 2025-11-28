@@ -31,7 +31,7 @@ function Dashboard({ graphData, kpis, issues, onUploadClick }) {
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [selectedIssue, setSelectedIssue] = useState(null);
   const [lastUpdate, setLastUpdate] = useState(null);
-  const [modelUrl, setModelUrl] = useState(null);
+  const [model3dFile, setModel3dFile] = useState(null);
   const [model3dName, setModel3dName] = useState(null);
 
   // Update views when data changes
@@ -175,9 +175,7 @@ function Dashboard({ graphData, kpis, issues, onUploadClick }) {
 
   const handle3dFile = async (file) => {
     try {
-      // Pour maintenant, créer un blob URL du fichier
-      const url = URL.createObjectURL(file);
-      setModelUrl(url);
+      setModel3dFile(file);
       setModel3dName(file.name);
       setView("model3d");
       
@@ -644,8 +642,8 @@ function Dashboard({ graphData, kpis, issues, onUploadClick }) {
                 </h3>
               </div>
               <div style={{ flex: 1, overflow: "hidden" }}>
-                {modelUrl ? (
-                  <Viewer3D modelUrl={modelUrl} graphData={graphData} />
+                {model3dFile ? (
+                  <Viewer3D modelFile={model3dFile} graphData={graphData} />
                 ) : (
                   <div style={{
                     display: "flex",
