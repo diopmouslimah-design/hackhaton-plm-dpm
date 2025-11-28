@@ -1,0 +1,44 @@
+{
+  "macro": {
+    "nodes": [
+      { "id": "M1", "label": "Pré-assemblage", "kpi": { "leadtime": 120, "delta": 30 } },
+      { "id": "M2", "label": "Assemblage Fuselage", "kpi": { "leadtime": 350, "delta": 75 } },
+      { "id": "M3", "label": "Assemblage Ailes", "kpi": { "leadtime": 180, "delta": 20 } },
+      { "id": "M4", "label": "Assemblage Réacteurs", "kpi": { "leadtime": 200, "delta": 45 } },
+      { "id": "M5", "label": "Intégration Systèmes", "kpi": { "leadtime": 240, "delta": 50 } },
+      { "id": "M6", "label": "Finitions", "kpi": { "leadtime": 90, "delta": 10 } }
+    ],
+    "edges": [
+      { "source": "M1", "target": "M2" },
+      { "source": "M2", "target": "M3" },
+      { "source": "M3", "target": "M4" },
+      { "source": "M4", "target": "M5" },
+      { "source": "M5", "target": "M6" }
+    ]
+  },
+  "detail": {
+    "nodes": [
+      { "id": "P1", "label": "Poste 1", "macro": "Pré-assemblage", "kpi": { "cycle_prev": 25, "cycle_real": 32.75, "delta_cycle": 7.75, "criticite": "Critique", "nb_pieces": 8 } },
+      { "id": "P2", "label": "Poste 2", "macro": "Assemblage Fuselage", "kpi": { "cycle_prev": 45, "cycle_real": 57.50, "delta_cycle": 12.50, "criticite": "Critique", "nb_pieces": 11 } },
+      { "id": "P3", "label": "Poste 3", "macro": "Assemblage Fuselage", "kpi": { "cycle_prev": 30, "cycle_real": 41.15, "delta_cycle": 11.15, "criticite": "Critique", "nb_pieces": 6 } },
+      { "id": "P4", "label": "Poste 4", "macro": "Assemblage Visserie", "kpi": { "cycle_prev": 15, "cycle_real": 20.75, "delta_cycle": 5.75, "criticite": "Majeure", "nb_pieces": 4 } },
+      { "id": "P5", "label": "Poste 5", "macro": "Assemblage Visserie", "kpi": { "cycle_prev": 10, "cycle_real": 14.50, "delta_cycle": 4.50, "criticite": "Mineure", "nb_pieces": 2 } },
+      { "id": "P6", "label": "Poste 6", "macro": "Assemblage Ailes", "kpi": { "cycle_prev": 20, "cycle_real": 27.75, "delta_cycle": 7.75, "criticite": "Critique", "nb_pieces": 5 } },
+      { "id": "P7", "label": "Poste 7", "macro": "Assemblage Ailes", "kpi": { "cycle_prev": 20, "cycle_real": 26.17, "delta_cycle": 6.17, "criticite": "Majeure", "nb_pieces": 5 } },
+      { "id": "P8", "label": "Poste 8", "macro": "Assemblage Ailes", "kpi": { "cycle_prev": 35, "cycle_real": 47.42, "delta_cycle": 12.42, "criticite": "Critique", "nb_pieces": 10 } },
+      { "id": "P9", "label": "Poste 9", "macro": "Assemblage Ailes", "kpi": { "cycle_prev": 40, "cycle_real": 54.33, "delta_cycle": 14.33, "criticite": "Critique", "nb_pieces": 12 } },
+      { "id": "P10", "label": "Poste 10", "macro": "Assemblage Réacteurs", "kpi": { "cycle_prev": 45, "cycle_real": 62.40, "delta_cycle": 17.40, "criticite": "Critique", "nb_pieces": 11 } }
+    ],
+    "edges": [
+      { "source": "P1", "target": "P2" },
+      { "source": "P2", "target": "P3" },
+      { "source": "P3", "target": "P4" },
+      { "source": "P4", "target": "P5" },
+      { "source": "P5", "target": "P6" },
+      { "source": "P6", "target": "P7" },
+      { "source": "P7", "target": "P8" },
+      { "source": "P8", "target": "P9" },
+      { "source": "P9", "target": "P10" }
+    ]
+  }
+}

@@ -1,0 +1,44 @@
+[
+  {
+    "id": "issue_1",
+    "level": "poste",
+    "poste_id": "P1",
+    "macro_step": "Pré-assemblage",
+    "issue_type": ["bottleneck"],
+    "delta_cycle_min": 7.75,
+    "nb_pieces": 8,
+    "criticite_max": "Critique",
+    "cout_total_pieces": 500000,
+    "niveau_experience": "Débutant",
+    "type_alea": "outillage",
+    "summary": "Poste 1 = goulet sur pièces critiques, rupture outillage."
+  },
+  {
+    "id": "issue_2",
+    "level": "poste",
+    "poste_id": "P2",
+    "macro_step": "Assemblage Fuselage",
+    "issue_type": ["bottleneck", "high_risk_part"],
+    "delta_cycle_min": 12.50,
+    "nb_pieces": 11,
+    "criticite_max": "Critique",
+    "cout_total_pieces": 3000000,
+    "niveau_experience": "Débutant",
+    "type_alea": "machine",
+    "summary": "Poste 2 = goulet majeur sur pièces critiques, dysfonctionnement machine soudure."
+  },
+  {
+    "id": "issue_10",
+    "level": "poste",
+    "poste_id": "P10",
+    "macro_step": "Assemblage Réacteurs",
+    "issue_type": ["bottleneck", "high_risk_part"],
+    "delta_cycle_min": 17.40,
+    "nb_pieces": 11,
+    "criticite_max": "Critique",
+    "cout_total_pieces": 3000000,
+    "niveau_experience": "Débutant",
+    "type_alea": "machine",
+    "summary": "Poste 10 = goulet majeur sur pièces critiques, opérateur junior + aléas machine."
+  }
+]

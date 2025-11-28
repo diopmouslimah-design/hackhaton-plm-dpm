@@ -1,0 +1,13 @@
+{
+  "leadtime_prev_global_min": 980,
+  "leadtime_real_global_min": 1280,
+  "delta_leadtime_global_min": 300,
+  "wip_index_baseline": 18400,
+  "wip_index_scenario": 15200,
+  "delta_wip_index": 3200,
+  "top_macro_bottlenecks": [
+    { "macro_step": "Assemblage Fuselage", "delta_leadtime_total_min": 75 },
+    { "macro_step": "Assemblage Réacteurs", "delta_leadtime_total_min": 45 },
+    { "macro_step": "Intégration Systèmes", "delta_leadtime_total_min": 50 }
+  ]
+}
